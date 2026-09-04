@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>여행 날씨 안내소</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Flatpickr for Range Date Picker -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+  <!-- Google Fonts: Jua & Gowun Dodum -->
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* Global Reset & Spacing */
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden !important;
+      position: relative;
+      touch-action: pan-y;
+      font-family: 'Gowun Dodum', 'Noto Sans KR', sans-serif;
+      word-break: keep-all;
+      letter-spacing: -0.04em !important;
+    }
+    
+    * {
+      letter-spacing: -0.04em !important;
+    }
+
+    .font-jua {
+      font-family: 'Jua', sans-serif;
+    }
+
+    /* Brighter, Luminous & Lovely Pastel Gradient Backgrounds */
+    .weather-bg {
+      transition: background 0.8s ease-in-out;
+    }
+    .bg-clear-day {
+      background: linear-gradient(160deg, #ffdeed 0%, #c4f0ff 50%, #fffbe3 100%);
+    }
+    .bg-cloudy {
+      background: linear-gradient(160deg, #e2edfd 0%, #f3f7fc 50%, #fff0fa 100%);
+    }
+    .bg-rainy {
+      background: linear-gradient(160deg, #b2cadf 0%, #dbe6f3 50%, #f4f8fc 100%);
+    }
+    .bg-snowy {
+      background: linear-gradient(160deg, #d8ebff 0%, #f0f7ff 50%, #ffffff 100%);
+    }
+
+    /* Professional Pastel Card Base */
+    .cute-pastel-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 2px solid #ffffff;
+      border-radius: 26px;
+      box-shadow: 0 10px 25px -4px rgba(255, 182, 193, 0.25), 0 6px 15px -4px rgba(147, 197, 253, 0.25);
+    }
+
+    /* Dynamic Weather Card Pastel Background Colors */
+    .card-bg-clear {
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, #fffdf0 100%) !important;
+      border: 2px solid #fef08a !important;
+    }
+    .card-bg-cloudy {
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, #f1f5f9 100%) !important;
+      border: 2px solid #cbd5e1 !important;
+    }
+    .card-bg-rainy {
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, #f0f9ff 100%) !important;
+      border: 2px solid #bae6fd !important;
+    }
+    .card-bg-snowy {
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, #f0f9ff 100%) !important;
+      border: 2px solid #bae6fd !important;
+    }
+
+    /* Gentle Bounce Animation */
+    @keyframes gentleBounce {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-4px) scale(1.04); }
+    }
+    .animate-gentle {
+      animation: gentleBounce 3s ease-in-out infinite;
+      display: inline-block;
+    }
+
+    /* Canvas Overlay */
+    #weatherCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Flatpickr Styling */
+    .flatpickr-calendar {
+      border-radius: 24px !important;
+      box-shadow: 0 18px 36px rgba(255, 182, 193, 0.3) !important;
+      font-family: 'Gowun Dodum', sans-serif !important;
+      font-size: 15px !important;
+      border: 2px solid #bae6fd !important;
+    }
+    .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange {
+      background: #38bdf8 !important;
+      border-color: #38bdf8 !important;
+    }
+    .flatpickr-day.inRange {
+      background: #e0f2fe !important;
+      box-shadow: -5px 0 0 #e0f2fe, 5px 0 0 #e0f2fe !important;
+    }
+
+    /* Hide scrollbar */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-clear-day min-h-screen relative text-slate-900 weather-bg flex flex-col justify-between py-6 px-3.5">
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-5 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col gap-2 w-[90%] max-w-sm pointer-events-none"></div>
+
+  <!-- Canvas Animation Overlay -->
+  <canvas id="weatherCanvas"></canvas>
+
+  <!-- iPhone 15 Optimization Box -->
+  <div class="relative z-10 max-w-md mx-auto w-full">
+    
+    <!-- App Title -->
+    <header class="text-center mb-5 fade-in">
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-slate-800 tracking-tight font-jua drop-shadow-sm">
+        ☀️ 여행 날씨 안내소 ☁️
+      </h1>
+      <p class="text-xs font-bold text-sky-700 mt-1">
+        <i class="fa-solid fa-signal text-emerald-500"></i> Open-Meteo 글로벌 기상 위성 연동 중
+      </p>
+      <p class="text-[10px] text-slate-500 mt-1 font-bold">
+        ※ 글로벌 예측 모델로 한국 기상청 실시간 예보와 다소 차이가 있을 수 있습니다.
+      </p>
+    </header>
+
+    <!-- Search Section -->
+    <section class="cute-pastel-card p-5 sm:p-6 mb-5 fade-in">
+      <div class="space-y-4">
+        
+        <!-- Region Search -->
+        <div class="relative">
+          <label class="block text-base sm:text-lg font-extrabold text-slate-800 mb-1.5 pl-1">
+            📍 여행 지역 검색
+          </label>
+          <div class="relative">
+            <input type="text" id="regionSearchInput" autocomplete="off" placeholder="지역, 명소, 초성(예: ㄱㄹ, 해운대, 성수동)" class="w-full bg-white border-2 border-sky-200 rounded-2xl px-4 py-3.5 text-sm sm:text-base font-extrabold text-slate-900 focus:outline-none focus:border-sky-400 pl-11 transition shadow-sm whitespace-nowrap overflow-hidden text-ellipsis">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-sky-400 text-base"></i>
+          </div>
+          <!-- Auto-complete Dropdown -->
+          <div id="searchResultsDropdown" class="hidden absolute top-full left-0 right-0 mt-1.5 bg-white border-2 border-sky-200 rounded-2xl shadow-xl z-50 max-h-60 overflow-y-auto text-base">
+            <!-- Populated via JavaScript -->
+          </div>
+        </div>
+
+        <!-- Date Range Picker -->
+        <div>
+          <label class="block text-base sm:text-lg font-extrabold text-slate-800 mb-1.5 pl-1">
+            🗓️ 여행 기간 선택
+          </label>
+          <div class="relative">
+            <input type="text" id="dateRangePicker" readonly placeholder="달력에서 여행 기간을 선택하세요" class="w-full bg-white border-2 border-sky-200 rounded-2xl px-4 py-3.5 text-sm sm:text-base font-extrabold text-slate-900 focus:outline-none focus:border-sky-400 pl-11 transition shadow-sm cursor-pointer">
+            <i class="fa-solid fa-calendar-week absolute left-4 top-4 text-sky-400 text-base"></i>
+          </div>
+        </div>
+
+        <!-- Search Button -->
+        <button id="searchBtn" class="w-full bg-gradient-to-r from-sky-400 to-pink-400 hover:opacity-95 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-md transition flex items-center justify-center gap-2 text-lg tracking-wide">
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-200"></i>
+          <span>실시간 여행 날씨 조회하기</span>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- Results Area -->
+    <main id="resultSection" class="space-y-5">
+      
+      <!-- TOP SUMMARY ROW CARD -->
+      <div class="cute-pastel-card p-5 sm:p-6 fade-in border-2 border-pink-200">
+        <div class="flex items-center justify-between mb-3 border-b-2 border-pink-100 pb-2.5">
+          <h2 class="font-extrabold text-slate-900 flex items-center gap-2 text-base sm:text-lg">
+            <span>✨</span> <span id="summaryTitleText">일자별 날씨 및 기온 요약</span>
+          </h2>
+          <span class="text-xs font-bold text-sky-600 bg-sky-100 px-2.5 py-1 rounded-full border border-sky-200" id="summarySubBadge">한눈에 보기</span>
+        </div>
+
+        <!-- Horizontal Scroll List -->
+        <div class="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1" id="tempOverviewGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- PRO-DESIGNED CLEAN DAILY CARDS -->
+      <div class="space-y-3.5" id="dailyForecastList">
+        <!-- Populated via JavaScript -->
+      </div>
+
+      <!-- Official Links Card -->
+      <div class="cute-pastel-card p-5 text-center fade-in space-y-2.5">
+        <h3 class="text-base font-extrabold text-slate-800 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-arrow-up-right-from-square text-sky-500"></i> 가장 정확한 동네 날씨 확인하기
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 font-bold">
+          현재 위치의 정밀한 예보는 국내 기상청 사이트를 참고하세요.
+        </p>
+        <div class="flex items-center justify-center gap-2 text-xs sm:text-sm font-bold pt-1">
+          <a href="https://www.weather.go.kr/w/weather/forecast/short-term.do" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-xl border border-blue-200 transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-cloud-sun"></i> 기상청 날씨누리
+          </a>
+          <a href="https://m.airkorea.or.kr/main" target="_blank" rel="noopener noreferrer" class="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl border border-emerald-200 transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-smog"></i> 에어코리아
+          </a>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Source Footer -->
+    <footer class="mt-6 text-center text-slate-700 text-xs sm:text-sm font-bold py-3">
+      <p>출처: AHNSOOYOUN과 제미나이 (Open-Meteo Real-time API)</p>
+    </footer>
+
+  </div>
+
+  <script>
+    // =========================================================================
+    // Custom Toast Notification System
+    // =========================================================================
+    function showToast(message, type = 'error') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      const bgColor = type === 'error' ? 'bg-white/95 border-rose-200 text-rose-600' : 'bg-white/95 border-sky-200 text-sky-600';
+      const icon = type === 'error' ? '<i class="fa-solid fa-circle-exclamation text-rose-400 text-lg"></i>' : '<i class="fa-solid fa-circle-check text-sky-400 text-lg"></i>';
+      
+      toast.className = `${bgColor} backdrop-blur-md border-2 font-extrabold px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 transform transition-all duration-300 -translate-y-10 opacity-0 text-sm sm:text-base`;
+      toast.innerHTML = `${icon}<span>${message}</span>`;
+      
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('-translate-y-10', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+      });
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-10', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+
+    // =========================================================================
+    // 🇰🇷 대한민국 전지역 DB
+    // =========================================================================
+    const KOREA_REGIONS_DB = [
+      // 서울
+      { name: "강남구", fullName: "서울특별시 강남구", province: "서울특별시", lat: 37.5172, lon: 127.0473, keywords: ["강남", "역삼", "삼성", "코엑스", "강남역"] },
+      { name: "마포구", fullName: "서울특별시 마포구", province: "서울특별시", lat: 37.5665, lon: 126.9015, keywords: ["홍대", "연남동", "합정", "상수", "망원동"] },
+      { name: "종로구", fullName: "서울특별시 종로구", province: "서울특별시", lat: 37.5730, lon: 126.9794, keywords: ["경복궁", "인사동", "북촌한옥마을", "익선동", "광화문"] },
+      { name: "성동구", fullName: "서울특별시 성동구", province: "서울특별시", lat: 37.5635, lon: 127.0369, keywords: ["성수동", "서울숲", "뚝섬"] },
+      { name: "중구", fullName: "서울특별시 중구", province: "서울특별시", lat: 37.5641, lon: 126.9979, keywords: ["명동", "남산", "N서울타워", "동대문"] },
+      { name: "송파구", fullName: "서울특별시 송파구", province: "서울특별시", lat: 37.5145, lon: 127.1061, keywords: ["잠실", "롯데월드", "석촌호수"] },
+      { name: "용산구", fullName: "서울특별시 용산구", province: "서울특별시", lat: 37.5326, lon: 126.9900, keywords: ["이태원", "한남동", "용산"] },
+
+      // 경기/인천
+      { name: "수원시", fullName: "경기도 수원시", province: "경기도", lat: 37.2636, lon: 127.0286, keywords: ["수원", "행궁동", "수원화성", "행리단길"] },
+      { name: "가평군", fullName: "경기도 가평군", province: "경기도", lat: 37.8315, lon: 127.5095, keywords: ["가평", "남이섬", "자라섬", "아침고요수목원"] },
+      { name: "양평군", fullName: "경기도 양평군", province: "경기도", lat: 37.4917, lon: 127.4875, keywords: ["양평", "두물머리", "용문사"] },
+      { name: "포천시", fullName: "경기도 포천시", province: "경기도", lat: 37.8949, lon: 127.2003, keywords: ["포천", "산정호수", "허브아일랜드"] },
+      { name: "안산시 단원구", fullName: "경기도 안산시 단원구 (대부도)", province: "경기도", lat: 37.3219, lon: 126.8309, keywords: ["대부도", "안산", "단원구"] },
+      { name: "용인시 수지구", fullName: "경기도 용인시 수지구", province: "경기도", lat: 37.3220, lon: 127.0975, keywords: ["용인", "수지구", "수지"] },
+      { name: "용인시 기흥구", fullName: "경기도 용인시 기흥구", province: "경기도", lat: 37.2804, lon: 127.1146, keywords: ["기흥구", "에버랜드", "한국민속촌"] },
+      { name: "인천 중구", fullName: "인천광역시 중구 (영종도/월미도)", province: "인천광역시", lat: 37.4737, lon: 126.6217, keywords: ["인천", "월미도", "차이나타운", "영종도", "인천공항"] },
+      { name: "부평구", fullName: "인천광역시 부평구", province: "인천광역시", lat: 37.5070, lon: 126.7218, keywords: ["부평"] },
+      { name: "강화군", fullName: "인천광역시 강화군", province: "인천광역시", lat: 37.7465, lon: 126.4880, keywords: ["강화도", "강화"] },
+
+      // 강원
+      { name: "강릉시", fullName: "강원특별자치도 강릉시", province: "강원도", lat: 37.7519, lon: 128.8761, keywords: ["강릉", "경포대", "안목해변", "정동진", "BTS버스정류장"] },
+      { name: "속초시", fullName: "강원특별자치도 속초시", province: "강원도", lat: 38.2070, lon: 128.5918, keywords: ["속초", "속초해수욕장", "아바이마을", "속초중앙시장"] },
+      { name: "양양군", fullName: "강원특별자치도 양양군", province: "강원도", lat: 38.0754, lon: 128.6189, keywords: ["양양", "서피비치", "하조대", "남애항", "서핑"] },
+      { name: "평창군", fullName: "강원특별자치도 평창군", province: "강원도", lat: 37.3705, lon: 128.3902, keywords: ["평창", "대관령", "양떼목장", "알펜시아"] },
+      { name: "춘천시", fullName: "강원특별자치도 춘천시", province: "강원도", lat: 37.8813, lon: 127.7298, keywords: ["춘천", "소양강", "닭갈비"] },
+      { name: "삼척시", fullName: "강원특별자치도 삼척시", province: "강원도", lat: 37.4498, lon: 129.1653, keywords: ["삼척", "장호항", "맹방해변"] },
+
+      // 충청
+      { name: "태안군", fullName: "충청남도 태안군 (안면도)", province: "충청남도", lat: 36.7456, lon: 126.2980, keywords: ["태안", "안면도", "꽃지해수욕장", "만리포"] },
+      { name: "보령시", fullName: "충청남도 보령시 (대천)", province: "충청남도", lat: 36.3530, lon: 126.5897, keywords: ["보령", "대천", "대천해수욕장", "머드축제"] },
+      { name: "단양군", fullName: "충청북도 단양군", province: "충청북도", lat: 36.9845, lon: 128.3655, keywords: ["단양", "도담삼봉", "패러글라이딩"] },
+      { name: "대전 유성구", fullName: "대전광역시 유성구", province: "대전광역시", lat: 36.3623, lon: 127.3563, keywords: ["대전", "유성", "성심당", "유성온천"] },
+
+      // 전라
+      { name: "전주시", fullName: "전라북도 전주시", province: "전라북도", lat: 35.8242, lon: 127.1480, keywords: ["전주", "전주한옥마을", "한옥마을", "전동성당"] },
+      { name: "여수시", fullName: "전라남도 여수시", province: "전라남도", lat: 34.7604, lon: 127.6622, keywords: ["여수", "여수밤바다", "돌산대교", "오동도", "향일암"] },
+      { name: "순천시", fullName: "전라남도 순천시", province: "전라남도", lat: 34.9506, lon: 127.4872, keywords: ["순천", "순천만", "순천만습지", "순천만국가정원"] },
+      { name: "신안군", fullName: "전라남도 신안군", province: "전라남도", lat: 34.8336, lon: 126.1017, keywords: ["신안", "퍼플섬", "홍도", "흑산도"] },
+      { name: "군산시", fullName: "전라북도 군산시", province: "전라북도", lat: 35.9676, lon: 126.7366, keywords: ["군산", "선유도", "이성당"] },
+
+      // 경상
+      { name: "해운대구", fullName: "부산광역시 해운대구", province: "부산광역시", lat: 35.1631, lon: 129.1636, keywords: ["부산", "해운대", "해운대해수욕장", "마린시티"] },
+      { name: "부산 수영구", fullName: "부산광역시 수영구 (광안리)", province: "부산광역시", lat: 35.1456, lon: 129.1131, keywords: ["광안리", "광안대교", "민락수변공원"] },
+      { name: "경주시", fullName: "경상북도 경주시", province: "경상북도", lat: 35.8562, lon: 129.2247, keywords: ["경주", "첨성대", "황리단길", "불국사", "안압지"] },
+      { name: "통영시", fullName: "경상남도 통영시", province: "경상남도", lat: 34.8544, lon: 128.4332, keywords: ["통영", "동피랑", "디피랑"] },
+      { name: "거제시", fullName: "경상남도 거제시", province: "경상남도", lat: 34.8806, lon: 128.6211, keywords: ["거제", "거제도", "바람의언덕", "외도"] },
+      { name: "울릉군", fullName: "경상북도 울릉군 (독도)", province: "경상북도", lat: 37.4844, lon: 130.9056, keywords: ["울릉도", "독도", "울릉"] },
+      { name: "남해군", fullName: "경상남도 남해군", province: "경상남도", lat: 34.8377, lon: 127.8924, keywords: ["남해", "독일마을", "다랭이마을"] },
+      { name: "포항시", fullName: "경상북도 포항시", province: "경상북도", lat: 36.0190, lon: 129.3435, keywords: ["포항", "호미곶", "스페이스워크"] },
+
+      // 제주
+      { name: "제주시", fullName: "제주특별자치도 제주시", province: "제주특별자치도", lat: 33.4996, lon: 126.5312, keywords: ["제주", "제주도", "협재", "애월", "함덕"] },
+      { name: "서귀포시", fullName: "제주특별자치도 서귀포시", province: "제주특별자치도", lat: 33.2541, lon: 126.5601, keywords: ["서귀포", "성산일출봉", "섭지코지", "중문", "우도"] }
+    ];
+
+    const regionsDb = KOREA_REGIONS_DB;
+
+    function getChosung(str) {
+      const KOREAN_CHO = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+      let result = '';
+      for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i) - 44032;
+        if (code >= 0 && code <= 11172) {
+          result += KOREAN_CHO[Math.floor(code / 588)];
+        } else {
+          result += str[i];
+        }
+      }
+      return result;
+    }
+
+    function normalizeText(str) {
+      return (str || '').toLowerCase().replace(/\s+/g, '');
+    }
+
+    function searchKoreaLocation(query) {
+      const cleanQuery = normalizeText(query);
+      if (!cleanQuery) return [];
+
+      const isOnlyChosung = /^[ㄱ-ㅎ]+$/.test(cleanQuery);
+
+      return regionsDb.filter(r => {
+        const cleanName = normalizeText(r.name);
+        const cleanFullName = normalizeText(r.fullName);
+        const cleanProvince = normalizeText(r.province);
+        const cleanKeywords = (r.keywords || []).map(normalizeText).join('');
+        const combined = `${cleanName}${cleanFullName}${cleanProvince}${cleanKeywords}`;
+
+        if (isOnlyChosung) {
+          return getChosung(combined).includes(cleanQuery);
+        }
+
+        if (combined.includes(cleanQuery) || cleanQuery.includes(cleanName)) return true;
+        if (r.keywords.some(kw => normalizeText(kw).includes(cleanQuery) || cleanQuery.includes(normalizeText(kw)))) return true;
+
+        const shortProvince = cleanProvince.replace(/(특별)?자치(도|시)|광역시|특별시/g, '');
+        if (shortProvince && (shortProvince.includes(cleanQuery) || cleanQuery.includes(shortProvince))) return true;
+
+        return false;
+      }).sort((a, b) => {
+        const aNameMatch = normalizeText(a.name).includes(cleanQuery) || normalizeText(a.fullName).includes(cleanQuery);
+        const bNameMatch = normalizeText(b.name).includes(cleanQuery) || normalizeText(b.fullName).includes(cleanQuery);
+        if (aNameMatch && !bNameMatch) return -1;
+        if (!aNameMatch && bNameMatch) return 1;
+        return 0;
+      });
+    }
+
+    let currentSelectedRegion = regionsDb.find(r => r.name === "용인시 수지구") || regionsDb[12];
+    let selectedStartDate = new Date();
+    let selectedEndDate = new Date();
+    selectedEndDate.setDate(selectedStartDate.getDate() + 2);
+
+    function formatDateStr(d) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    flatpickr("#dateRangePicker", {
+      mode: "range",
+      locale: "ko",
+      dateFormat: "Y-m-d",
+      minDate: "today",
+      defaultDate: [selectedStartDate, selectedEndDate],
+      onChange: function(selectedDates) {
+        if (selectedDates.length === 2) {
+          selectedStartDate = selectedDates[0];
+          selectedEndDate = selectedDates[1];
+        }
+      }
+    });
+
+    const searchInput = document.getElementById('regionSearchInput');
+    const dropdown = document.getElementById('searchResultsDropdown');
+
+    searchInput.addEventListener('focus', () => {
+      searchInput.value = '';
+      dropdown.classList.add('hidden');
+    });
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim();
+      if (!query) {
+        dropdown.classList.add('hidden');
+        return;
+      }
+      renderDropdownResults(query);
+    });
+
+    function renderDropdownResults(query) {
+      const matches = searchKoreaLocation(query);
+
+      if (matches.length > 0) {
+        dropdown.innerHTML = matches.map(r => `
+          <div class="px-4 py-3 hover:bg-sky-50 cursor-pointer border-b border-slate-100 last:border-none flex justify-between items-center transition" data-name="${r.name}">
+            <div class="flex items-center gap-2">
+              <span class="font-black text-slate-800 text-sm">📍 ${r.name}</span>
+              <span class="text-[11px] font-bold text-slate-400">(${r.province})</span>
+            </div>
+            <span class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100 truncate max-w-[150px]">${r.fullName}</span>
+          </div>
+        `).join('');
+        dropdown.classList.remove('hidden');
+      } else {
+        dropdown.innerHTML = `
+          <div class="px-4 py-3 text-xs font-bold text-slate-400 text-center">
+            ❌ 검색 결과가 없습니다. 올바른 지역명을 입력해주세요.
+          </div>`;
+        dropdown.classList.remove('hidden');
+      }
+    }
+
+    dropdown.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-name]');
+      if (item) {
+        const regionName = item.getAttribute('data-name');
+        const found = regionsDb.find(r => r.name === regionName);
+        if (found) {
+          currentSelectedRegion = found;
+          searchInput.value = found.fullName;
+          dropdown.classList.add('hidden');
+          updateUI();
+        }
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    function executeSearch() {
+      const query = searchInput.value.trim();
+      
+      if (!query && currentSelectedRegion) {
+        searchInput.value = currentSelectedRegion.fullName;
+        dropdown.classList.add('hidden');
+        updateUI();
+        return;
+      }
+
+      if (!query) {
+        showToast('검색할 지역을 입력해 주세요.');
+        return;
+      }
+
+      const matches = searchKoreaLocation(query);
+      if (matches.length > 0) {
+        currentSelectedRegion = matches[0];
+        searchInput.value = matches[0].fullName;
+        dropdown.classList.add('hidden');
+        updateUI();
+      } else {
+        showToast(`'${query}'을(를) 찾을 수 없습니다. 정확한 지역명이나 초성을 입력해주세요!`);
+        dropdown.classList.add('hidden');
+      }
+    }
+
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        executeSearch();
+      }
+    });
+
+    // =========================================================================
+    // 🌐 Open-Meteo 실시간 날씨 세분화 맵핑 (한국 환경에 맞게 텍스트 수정)
+    // =========================================================================
+    function mapWmoToWeatherType(code) {
+      // 0: 맑음, 1: 대체로 맑음
+      if (code === 0 || code === 1) return { type: 'clear', name: '맑음', icon: '☀️', bgClass: 'bg-clear-day', cardClass: 'card-bg-clear', tip: '햇살이 기분 좋게 비추는 날이에요! 야외 활동 추천!' };
+      // 2: 구름 조금
+      if (code === 2) return { type: 'cloudy', name: '구름조금', icon: '⛅', bgClass: 'bg-cloudy', cardClass: 'card-bg-cloudy', tip: '선선하고 산책하기 딱 좋은 매력적인 날씨입니다.' };
+      // 3: 흐림 (구름 많음)
+      if (code === 3) return { type: 'overcast', name: '흐림', icon: '☁️', bgClass: 'bg-cloudy', cardClass: 'card-bg-cloudy', tip: '구름이 많은 날씨예요. 자외선 걱정 없이 돌아다니기 좋아요.' };
+      // 45, 48: 안개
+      if ([45, 48].includes(code)) return { type: 'cloudy', name: '안개', icon: '🌫️', bgClass: 'bg-cloudy', cardClass: 'card-bg-cloudy', tip: '안개가 짙으니 이른 아침이나 산간 도로 운전 시 주의하세요!' };
+      // 51, 53, 55: 이슬비 / 61, 63: 가벼운 비
+      if ([51, 53, 55, 61, 63].includes(code)) return { type: 'rainy', name: '약한 비', icon: '🌦️', bgClass: 'bg-rainy', cardClass: 'card-bg-rainy', tip: '가벼운 비가 내려요. 작은 우산 챙겨서 돌아다니기 괜찮아요!' };
+      // 65: 강한 비, 80, 81, 82: 소나기
+      if ([65, 80, 81, 82].includes(code)) return { type: 'rainy', name: '비/소나기', icon: '🌧️', bgClass: 'bg-rainy', cardClass: 'card-bg-rainy', tip: '우산 꼭 챙기시고 운치 있는 실내 여행 코스를 즐겨보세요!' };
+      // 71, 73, 75, 77, 85, 86: 눈
+      if ([71, 73, 75, 77, 85, 86].includes(code)) return { type: 'snowy', name: '눈', icon: '❄️', bgClass: 'bg-snowy', cardClass: 'card-bg-snowy', tip: '눈이 내려 미끄러울 수 있으니 발걸음 조심해서 이동하세요!' };
+      // 95, 96, 99: 천둥번개 / 폭우
+      if ([95, 96, 99].includes(code)) return { type: 'rainy', name: '뇌우/폭우', icon: '⛈️', bgClass: 'bg-rainy', cardClass: 'card-bg-rainy', tip: '천둥번개를 동반한 비가 오니 가급적 실내에서 안전하게 휴식하세요.' };
+      
+      return { type: 'clear', name: '맑음', icon: '☀️', bgClass: 'bg-clear-day', cardClass: 'card-bg-clear', tip: '즐겁고 행복한 여행 보내세요!' };
+    }
+
+    // 타임존을 한국(Asia/Seoul)으로 명시하여 호출
+    async function fetchRealWeatherData(lat, lon) {
+      try {
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FSeoul`;
+        const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&daily=pm10,pm2_5&timezone=Asia%2FSeoul`;
+
+        const [resWeather, resAir] = await Promise.all([
+          fetch(weatherUrl),
+          fetch(airUrl).catch(() => null)
+        ]);
+
+        const weatherData = await resWeather.json();
+        const airData = resAir ? await resAir.json() : null;
+
+        return { weatherData, airData };
+      } catch (err) {
+        console.error("Open-Meteo API Fetch Error:", err);
+        return null;
+      }
+    }
+
+    function getPmBadge(pm10, pm25) {
+      if (pm10 <= 30 && pm25 <= 15) return { text: '좋음', color: 'bg-emerald-100 text-emerald-800 border border-emerald-300' };
+      if (pm10 <= 80 && pm25 <= 35) return { text: '보통', color: 'bg-blue-100 text-blue-800 border border-blue-300' };
+      if (pm10 <= 150 && pm25 <= 75) return { text: '나쁨', color: 'bg-amber-100 text-amber-800 border border-amber-300' };
+      return { text: '매우나쁨', color: 'bg-rose-100 text-rose-800 border border-rose-300' };
+    }
+
+    // Canvas Particles Animation Overlay
+    const canvas = document.getElementById('weatherCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+      constructor(type) { this.reset(type); }
+      reset(type) {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height - canvas.height;
+        this.type = type;
+        if (type === 'rainy') {
+          this.length = Math.random() * 16 + 10;
+          this.speed = Math.random() * 8 + 9;
+          this.opacity = Math.random() * 0.35 + 0.15;
+        } else if (type === 'snowy') {
+          this.radius = Math.random() * 3.5 + 1.5;
+          this.speed = Math.random() * 1.5 + 0.8;
+          this.drift = Math.random() * 1 - 0.5;
+          this.opacity = Math.random() * 0.5 + 0.2;
+        } else {
+          this.radius = Math.random() * 2.5 + 1;
+          this.speed = Math.random() * 0.4 + 0.1;
+          this.opacity = Math.random() * 0.3 + 0.15;
+        }
+      }
+      update() {
+        if (this.type === 'rainy') {
+          this.y += this.speed;
+          if (this.y > canvas.height) this.reset(this.type);
+        } else if (this.type === 'snowy') {
+          this.y += this.speed;
+          this.x += this.drift;
+          if (this.y > canvas.height) this.reset(this.type);
+        } else {
+          this.y -= this.speed;
+          if (this.y < 0) this.reset(this.type);
+        }
+      }
+      draw() {
+        ctx.beginPath();
+        if (this.type === 'rainy') {
+          ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`;
+          ctx.lineWidth = 1.3;
+          ctx.moveTo(this.x, this.y);
+          ctx.lineTo(this.x - 1, this.y + this.length);
+          ctx.stroke();
+        } else if (this.type === 'snowy') {
+          ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = `rgba(255, 253, 220, ${this.opacity})`;
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    function initParticles(type) {
+      particles = [];
+      const count = type === 'rainy' ? 65 : (type === 'snowy' ? 40 : 20);
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle(type));
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    // UI 렌더링
+    async function updateUI() {
+      if (!selectedStartDate || !selectedEndDate) {
+        showToast('여행 기간을 선택해 주세요.');
+        return;
+      }
+
+      const dailyListContainer = document.getElementById('dailyForecastList');
+      const tempOverviewGrid = document.getElementById('tempOverviewGrid');
+
+      dailyListContainer.innerHTML = `
+        <div class="cute-pastel-card p-8 text-center text-sky-600 font-extrabold flex flex-col items-center gap-3">
+          <i class="fa-solid fa-spinner fa-spin text-3xl text-sky-400"></i>
+          <span>${currentSelectedRegion.name} 날씨 데이터 수신 중...</span>
+        </div>
+      `;
+      tempOverviewGrid.innerHTML = '<span class="text-xs font-bold text-slate-400 p-2">로딩 중...</span>';
+
+      const realData = await fetchRealWeatherData(currentSelectedRegion.lat, currentSelectedRegion.lon);
+
+      if (!realData || !realData.weatherData || !realData.weatherData.daily) {
+        dailyListContainer.innerHTML = `
+          <div class="cute-pastel-card p-6 text-center text-rose-500 font-extrabold">
+            ⚠️ 날씨 데이터를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.
+          </div>
+        `;
+        return;
+      }
+
+      const daily = realData.weatherData.daily;
+      const airDaily = realData.airData?.daily || null;
+
+      const diffTime = Math.abs(selectedEndDate - selectedStartDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const displayDaysCount = Math.min(diffDays, 10);
+
+      document.getElementById('summaryTitleText').textContent = `${currentSelectedRegion.name} 날씨 요약`;
+      document.getElementById('summarySubBadge').textContent = `${displayDaysCount}일간`;
+
+      dailyListContainer.innerHTML = '';
+      tempOverviewGrid.innerHTML = '';
+
+      let firstDayWeatherType = 'clear';
+
+      for (let i = 0; i < displayDaysCount; i++) {
+        const curDate = new Date(selectedStartDate);
+        curDate.setDate(selectedStartDate.getDate() + i);
+
+        const m = curDate.getMonth() + 1;
+        const d = curDate.getDate();
+        const dateStr = formatDateStr(curDate);
+        const dayName = ['일', '월', '화', '수', '목', '금', '토'][curDate.getDay()];
+
+        // API 전달 결과와 날짜 매핑
+        let apiIdx = daily.time.indexOf(dateStr);
+        if (apiIdx === -1) apiIdx = Math.min(i, daily.time.length - 1);
+
+        const weatherCode = daily.weathercode[apiIdx] ?? 0;
+        const weather = mapWmoToWeatherType(weatherCode);
+        const highTemp = Math.round(daily.temperature_2m_max[apiIdx] ?? 20);
+        const lowTemp = Math.round(daily.temperature_2m_min[apiIdx] ?? 10);
+        const rainProb = Math.round(daily.precipitation_probability_max?.[apiIdx] ?? 0);
+
+        const pm10 = airDaily?.pm10?.[apiIdx] ? Math.round(airDaily.pm10[apiIdx]) : 25;
+        const pm25 = airDaily?.pm2_5?.[apiIdx] ? Math.round(airDaily.pm2_5[apiIdx]) : 12;
+
+        if (i === 0) firstDayWeatherType = weather.type;
+
+        // TOP SUMMARY ROW ITEM
+        const overviewItem = document.createElement('div');
+        overviewItem.className = "bg-white/90 p-3 rounded-2xl border-2 border-sky-100 flex flex-col items-center justify-center shrink-0 min-w-[100px] shadow-sm";
+        overviewItem.innerHTML = `
+          <span class="text-sm font-black text-slate-800">${m}/${d} (${dayName})</span>
+          <span class="text-3xl my-1.5 animate-gentle filter drop-shadow-sm">${weather.icon}</span>
+          <span class="text-sm font-black text-slate-900 mb-1 whitespace-nowrap">${weather.name}</span>
+          <div class="text-base font-black tracking-tight">
+            <span class="text-rose-500">${highTemp}°</span>
+            <span class="text-slate-300">/</span>
+            <span class="text-sky-600">${lowTemp}°</span>
+          </div>
+        `;
+        tempOverviewGrid.appendChild(overviewItem);
+
+        // DAILY DETAIL CARD
+        const pmBadge = getPmBadge(pm10, pm25);
+
+        const card = document.createElement('div');
+        card.className = `cute-pastel-card p-4 sm:p-5 shadow-sm fade-in ${weather.cardClass}`;
+        card.innerHTML = `
+          <div class="flex flex-col space-y-3">
+            
+            <div class="flex items-center justify-between border-b border-black/5 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="font-black text-slate-900 text-base sm:text-lg">${m}월 ${d}일 (${dayName})</span>
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-white/90 text-sky-800 border border-sky-200 shadow-2xs">
+                  ${i === 0 ? '1일차 (출발)' : `${i + 1}일차`}
+                </span>
+              </div>
+              <div class="flex items-center gap-1 bg-white/90 px-2.5 py-0.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                <span class="text-xs font-bold text-slate-500">미세먼지</span>
+                <span class="text-xs font-black px-1.5 py-0.2 rounded ${pmBadge.color}">
+                  ${pmBadge.text}
+                </span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between px-1">
+              
+              <div class="flex items-center gap-3">
+                <span class="text-4xl sm:text-5xl animate-gentle filter drop-shadow-sm shrink-0">${weather.icon}</span>
+                <div>
+                  <div class="text-base font-black text-slate-900">${weather.name}</div>
+                  <div class="text-sm sm:text-base font-bold text-slate-600 mt-0.5">강수확률 <span class="text-sky-600 font-extrabold">${rainProb}%</span></div>
+                </div>
+              </div>
+
+              <div class="bg-white/90 px-3.5 py-2 rounded-2xl border border-slate-200/80 text-right shadow-2xs">
+                <div class="text-[10px] font-bold text-slate-400">최고 / 최저 기온</div>
+                <div class="text-base sm:text-lg font-black tracking-tight mt-0.5">
+                  <span class="text-rose-500">${highTemp}°C</span>
+                  <span class="text-slate-300">/</span>
+                  <span class="text-sky-600">${lowTemp}°C</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="bg-white/80 rounded-xl px-3 py-2 border border-white/80 flex items-center gap-1.5 shadow-2xs">
+              <span class="text-amber-500 text-sm shrink-0">💡</span>
+              <span class="text-xs sm:text-sm font-extrabold text-slate-800 break-keep">${weather.tip}</span>
+            </div>
+
+          </div>
+        `;
+
+        dailyListContainer.appendChild(card);
+      }
+
+      document.body.className = `bg-clear-day min-h-screen relative text-slate-900 weather-bg flex flex-col justify-between py-6 px-3.5 ${mapWmoToWeatherType(daily.weathercode[0] ?? 0).bgClass}`;
+      initParticles(firstDayWeatherType);
+    }
+
+    document.getElementById('searchBtn').addEventListener('click', executeSearch);
+
+    window.onload = function() {
+      searchInput.value = currentSelectedRegion.fullName;
+      updateUI();
+    };
+  </script>
+</body>
+</html>
+
